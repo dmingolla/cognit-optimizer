@@ -4,7 +4,7 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 def create_devices_from_assignments(assignments):
-    """Create Device objects from database assignments with per-device feasible clusters."""
+    """Create Device objects for the optimization algorithm from database assignments with per-device feasible clusters."""
     from device_alloc.model import Device
     from modules.opennebula_adapter import get_feasible_clusters_for_device
 
@@ -17,7 +17,7 @@ def create_devices_from_assignments(assignments):
 
         # Get feasible clusters for this device based on app requirements
         feasible_cluster_ids = get_feasible_clusters_for_device(app_req_id)
-        
+
         device = Device(
             id=device_id,
             load=load,
@@ -46,7 +46,7 @@ def run_optimization_with_db_updates():
     from modules.opennebula_adapter import get_cluster_pool, get_app_requirement
     from device_alloc.xmlrpc_client import OnedServerProxy
 
-    # Get current assignments and create devices with per-device feasible clusters
+    # Get current device <-> cluster assignments from the local database
     assignments = get_device_assignments()
     
     # Print device requirements
