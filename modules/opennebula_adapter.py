@@ -5,15 +5,14 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 def get_cluster_pool() -> list:
     """Retrieve cluster pool from OpenNebula."""
-    from device_alloc.model import create_cluster_pool
-    from device_alloc.xmlrpc_client import OnedServerProxy
+    from device_alloc import create_cluster_pool, OnedServerProxy
 
     with OnedServerProxy() as oned_client:
         return create_cluster_pool(oned_client)
 
 def get_app_requirement(app_req_id: int) -> dict:
     """Retrieve app requirement from OpenNebula by ID using OnedServerProxy."""
-    from device_alloc.xmlrpc_client import OnedServerProxy
+    from device_alloc import OnedServerProxy
 
     try:
         with OnedServerProxy() as client:
@@ -53,7 +52,7 @@ def get_feasible_clusters_for_device(app_req_id: int) -> list[int]:
         import pyone
 
         # Create pyone client using OnedServerProxy credentials
-        from device_alloc.xmlrpc_client import OnedServerProxy
+        from device_alloc import OnedServerProxy
         with OnedServerProxy() as proxy:
             # Get session from OnedServerProxy
             one = pyone.OneServer(ONE_XMLRPC_ENDPOINT, session=proxy._session)

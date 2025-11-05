@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 def create_devices_from_assignments(assignments: list[dict]) -> list:
     """Create Device objects for the optimization algorithm from database assignments with per-device feasible clusters."""
-    from device_alloc.model import Device
+    from device_alloc import Device
     from modules.opennebula_adapter import get_feasible_clusters_for_device
 
     devices = []
@@ -30,7 +30,7 @@ def create_devices_from_assignments(assignments: list[dict]) -> list:
 
 def optimize_device_assignments(devices: list, clusters: list) -> tuple | None:
     """Run optimization algorithm on devices and clusters."""
-    from device_alloc.optimizer import DeviceOptimizer
+    from device_alloc import DeviceOptimizer
 
     opt = DeviceOptimizer(devices=devices, clusters=clusters, msg=False)
     result = opt.optimize()
@@ -44,7 +44,7 @@ def run_optimization_with_db_updates() -> tuple | None:
     """Run complete optimization cycle with database updates."""
     from modules.db_adapter import get_device_assignments, update_device_cluster_assignments
     from modules.opennebula_adapter import get_cluster_pool, get_app_requirement
-    from device_alloc.xmlrpc_client import OnedServerProxy
+    from device_alloc import OnedServerProxy
 
     # Get current device <-> cluster assignments from the local database
     assignments = get_device_assignments()
