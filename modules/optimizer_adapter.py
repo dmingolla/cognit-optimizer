@@ -3,6 +3,9 @@ import os
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+from modules.logger import get_logger
+logger = get_logger(__name__)
+
 def create_devices_from_assignments(assignments: list[dict]) -> list:
     """Create Device objects for the optimization algorithm from database assignments with per-device feasible clusters."""
     from device_alloc import Device
@@ -46,20 +49,18 @@ def run_optimization_with_db_updates() -> tuple | None:
     from modules.opennebula_adapter import get_cluster_pool, get_app_requirement
     from device_alloc import OnedServerProxy
 
-    # Get current device <-> cluster assignments from the local database
     assignments = get_device_assignments()
     
-    # Print device requirements
-    print("\n=== DEVICE REQUIREMENTS ===")
+    logger.info("=== DEVICE REQUIREMENTS ===")
     for assignment in assignments:
         device_id = assignment['device_id']
         app_req_id = assignment['app_req_id']
         app_req = get_app_requirement(app_req_id)
         if not app_req:
-            print(f"{device_id}: Could not fetch app requirements (app_req_id={app_req_id})")
+            logger.warning(f"{device_id}: Could not fetch app requirements (app_req_id={app_req_id})")
             continue
-        print(f"{device_id}: FLAVOUR={app_req.get('FLAVOUR')}, IS_CONFIDENTIAL={app_req.get('IS_CONFIDENTIAL')}, "
-              f"PROVIDERS={app_req.get('PROVIDERS')}, GEOLOCATION={app_req.get('GEOLOCATION')}")
+        logger.info(f"{device_id}: FLAVOUR={app_req.get('FLAVOUR')}, IS_CONFIDENTIAL={app_req.get('IS_CONFIDENTIAL')}, "
+                    f"PROVIDERS={app_req.get('PROVIDERS')}, GEOLOCATION={app_req.get('GEOLOCATION')}")
     
     devices = create_devices_from_assignments(assignments)
 
@@ -71,39 +72,37 @@ def run_optimization_with_db_updates() -> tuple | None:
     clusters = get_cluster_pool()
     filtered_clusters = [c for c in clusters if c.id in all_feasible_cluster_ids]
 
-    print("\n=== CLUSTER OPTIMIZER ATTRIBUTES ===\n")
+    logger.info("=== CLUSTER OPTIMIZER ATTRIBUTES ===")
     for cluster in filtered_clusters:
-        print(cluster, "\n")
+        logger.info(str(cluster))
 
-    # Print cluster attributes
-    print("\n=== CLUSTER OPENNEBULA ATTRIBUTES ===")
+    logger.info("=== CLUSTER OPENNEBULA ATTRIBUTES ===")
     with OnedServerProxy() as client:
         cluster_info = client('one.clusterpool.info')
         if 'CLUSTER_POOL' not in cluster_info or 'CLUSTER' not in cluster_info['CLUSTER_POOL']:
-            print("Could not fetch cluster information")
+            logger.warning("Could not fetch cluster information")
         else:
             for cluster in clusters:
                 for c in cluster_info['CLUSTER_POOL']['CLUSTER']:
                     if int(c['ID']) != cluster.id:
                         continue
                     template = c.get('TEMPLATE', {})
-                    print(f"Cluster {cluster.id}: FLAVOURS={template.get('FLAVOURS')}, "
-                          f"IS_CONFIDENTIAL={template.get('IS_CONFIDENTIAL')}, "
-                          f"PROVIDERS={template.get('PROVIDERS')}, ",
-                          f"GEOLOCATION={template.get('GEOLOCATION')}")
+                    logger.info(f"Cluster {cluster.id}: FLAVOURS={template.get('FLAVOURS')}, "
+                               f"IS_CONFIDENTIAL={template.get('IS_CONFIDENTIAL')}, "
+                               f"PROVIDERS={template.get('PROVIDERS')}, "
+                               f"GEOLOCATION={template.get('GEOLOCATION')}")
                     break
 
     # Run optimization on filtered clusters
     result = optimize_device_assignments(devices, filtered_clusters)
 
-    # Update database with new allocations if optimization succeeded
     if result:
         allocs, n_vms, objective = result
-        print("\n=== OPTIMIZATION RESULT ===")
+        logger.info("=== OPTIMIZATION RESULT ===")
         for device_id, cluster_id in allocs.items():
-            print(f"{device_id} -> Cluster {cluster_id}")
+            logger.info(f"{device_id} -> Cluster {cluster_id}")
         
         updated_count = update_device_cluster_assignments(allocs)
-        print(f"\nDatabase updates: {updated_count} devices changed assignment")
+        logger.info(f"Database updates: {updated_count} devices changed assignment")
 
     return result
