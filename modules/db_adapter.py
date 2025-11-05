@@ -1,6 +1,6 @@
 import sys
 
-# Mock pyoneai before importing cognit_conf to avoid dependency
+# Mock pyoneai before importing cognit_conf (required by db_manager)
 class MockFloat:
     pass
 
@@ -9,9 +9,7 @@ class MockMetricType:
 
 class MockMetricAttributes:
     def __init__(self, name, type, dtype):
-        self.name = name
-        self.type = type
-        self.dtype = dtype
+        pass
 
 class MockPyoneai:
     Float = MockFloat
@@ -23,15 +21,20 @@ sys.modules['pyoneai.core'] = MockPyoneai
 
 sys.path.insert(0, '/home/ubuntu/cognit-frontend/src')
 
+# Import and initialize DBManager once (singleton pattern ensures single instance)
+import db_manager
+_db = db_manager.DBManager(
+    DB_PATH='/home/ubuntu/cognit-frontend/database/device_cluster_assignment.db',
+    DB_CLEANUP_DAYS=30
+)
+
 def get_device_assignments():
     """Retrieve all device assignments from database."""
-    import db_manager
-    db = db_manager.DBManager()
-    device_ids = db.get_all_device_ids()
+    device_ids = _db.get_all_device_ids()
 
     assignments = []
     for device_id in device_ids:
-        assignment = db.get_device_assignment(device_id)
+        assignment = _db.get_device_assignment(device_id)
         if assignment:
             assignments.append(assignment)
 
@@ -39,13 +42,11 @@ def get_device_assignments():
 
 def update_device_cluster_assignments(allocations):
     """Update device cluster assignments in database only when changed."""
-    import db_manager
-    db = db_manager.DBManager()
     updated_count = 0
     for device_id, new_cluster_id in allocations.items():
-        current = db.get_device_assignment(device_id)
+        current = _db.get_device_assignment(device_id)
         if current and current['cluster_id'] != new_cluster_id:
-            db.update_device_assignment(
+            _db.update_device_assignment(
                 device_id=device_id,
                 cluster_id=new_cluster_id,
                 flavour=current['flavour'],

@@ -43,10 +43,24 @@ def optimize_device_assignments(devices, clusters):
 def run_optimization_with_db_updates():
     """Run complete optimization cycle with database updates."""
     from modules.db_adapter import get_device_assignments, update_device_cluster_assignments
-    from modules.opennebula_adapter import get_cluster_pool
+    from modules.opennebula_adapter import get_cluster_pool, get_app_requirement
+    from device_alloc.xmlrpc_client import OnedServerProxy
 
     # Get current assignments and create devices with per-device feasible clusters
     assignments = get_device_assignments()
+    
+    # Print device requirements
+    print("\n=== DEVICE REQUIREMENTS ===")
+    for assignment in assignments:
+        device_id = assignment['device_id']
+        app_req_id = assignment['app_req_id']
+        app_req = get_app_requirement(app_req_id)
+        if app_req:
+            print(f"{device_id}: FLAVOUR={app_req.get('FLAVOUR')}, IS_CONFIDENTIAL={app_req.get('IS_CONFIDENTIAL')}, "
+                  f"PROVIDERS={app_req.get('PROVIDERS')}, GEOLOCATION={app_req.get('GEOLOCATION')}")
+        else:
+            print(f"{device_id}: Could not fetch app requirements (app_req_id={app_req_id})")
+    
     devices = create_devices_from_assignments(assignments)
 
     # Filter cluster pool to only include clusters that are feasible for at least one device
@@ -57,13 +71,33 @@ def run_optimization_with_db_updates():
     clusters = get_cluster_pool()
     filtered_clusters = [c for c in clusters if c.id in all_feasible_cluster_ids]
 
+    # Print cluster attributes
+    print("\n=== CLUSTER ATTRIBUTES ===")
+    with OnedServerProxy() as client:
+        cluster_info = client('one.clusterpool.info')
+        if 'CLUSTER_POOL' in cluster_info and 'CLUSTER' in cluster_info['CLUSTER_POOL']:
+            for cluster in clusters:
+                for c in cluster_info['CLUSTER_POOL']['CLUSTER']:
+                    if int(c['ID']) == cluster.id:
+                        template = c.get('TEMPLATE', {})
+                        print(f"Cluster {cluster.id}: FLAVOURS={template.get('FLAVOURS')}, "
+                              f"IS_CONFIDENTIAL={template.get('IS_CONFIDENTIAL')}, "
+                              f"PROVIDERS={template.get('PROVIDERS')}, "
+                              f"GEOLOCATION={template.get('GEOLOCATION')}, "
+                              f"MAX_CAPACITY={template.get('MAX_CAPACITY')}")
+                        break
+
     # Run optimization on filtered clusters
     result = optimize_device_assignments(devices, filtered_clusters)
 
     # Update database with new allocations if optimization succeeded
     if result:
         allocs, n_vms, objective = result
+        print("\n=== OPTIMIZATION RESULT ===")
+        for device_id, cluster_id in allocs.items():
+            print(f"{device_id} -> Cluster {cluster_id}")
+        
         updated_count = update_device_cluster_assignments(allocs)
-        print(f"Optimization completed: {updated_count} devices updated")
+        print(f"\nDatabase updates: {updated_count} devices changed assignment")
 
     return result

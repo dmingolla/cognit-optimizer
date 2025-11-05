@@ -40,22 +40,29 @@ def get_feasible_clusters_for_device(app_req_id: int):
     providers = app_req.get('PROVIDERS')
     
     # Use clusters_ids_get from cognit-frontend
+    # Clean up sys.path to avoid conflicts with /usr/lib/one/python
+    original_path = sys.path.copy()
+    sys.path = [p for p in sys.path if '/usr/lib/one/python' not in p]
     sys.path.insert(0, '/home/ubuntu/cognit-frontend/src')
-    import opennebula as on
-    import pyone
+    
+    try:
+        import opennebula as on
+        import pyone
 
-    # Create pyone client using OnedServerProxy credentials
-    from device_alloc.xmlrpc_client import OnedServerProxy
-    with OnedServerProxy() as proxy:
-        # Get session from OnedServerProxy
-        one = pyone.OneServer('http://localhost:2633/RPC2', session=proxy._session)
-        
-        feasible_cluster_ids = on.clusters_ids_get(
-            one=one,
-            geolocation=geolocation,
-            flavour=flavour,
-            is_confidential=is_confidential,
-            providers=providers
-        )
+        # Create pyone client using OnedServerProxy credentials
+        from device_alloc.xmlrpc_client import OnedServerProxy
+        with OnedServerProxy() as proxy:
+            # Get session from OnedServerProxy
+            one = pyone.OneServer('http://localhost:2633/RPC2', session=proxy._session)
+            
+            feasible_cluster_ids = on.clusters_ids_get(
+                one=one,
+                geolocation=geolocation,
+                flavour=flavour,
+                is_confidential=is_confidential,
+                providers=providers
+            )
 
-    return feasible_cluster_ids
+        return feasible_cluster_ids
+    finally:
+        sys.path = original_path
