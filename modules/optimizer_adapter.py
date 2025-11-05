@@ -55,11 +55,11 @@ def run_optimization_with_db_updates() -> tuple | None:
         device_id = assignment['device_id']
         app_req_id = assignment['app_req_id']
         app_req = get_app_requirement(app_req_id)
-        if app_req:
-            print(f"{device_id}: FLAVOUR={app_req.get('FLAVOUR')}, IS_CONFIDENTIAL={app_req.get('IS_CONFIDENTIAL')}, "
-                  f"PROVIDERS={app_req.get('PROVIDERS')}, GEOLOCATION={app_req.get('GEOLOCATION')}")
-        else:
+        if not app_req:
             print(f"{device_id}: Could not fetch app requirements (app_req_id={app_req_id})")
+            continue
+        print(f"{device_id}: FLAVOUR={app_req.get('FLAVOUR')}, IS_CONFIDENTIAL={app_req.get('IS_CONFIDENTIAL')}, "
+              f"PROVIDERS={app_req.get('PROVIDERS')}, GEOLOCATION={app_req.get('GEOLOCATION')}")
     
     devices = create_devices_from_assignments(assignments)
 
@@ -79,16 +79,19 @@ def run_optimization_with_db_updates() -> tuple | None:
     print("\n=== CLUSTER OPENNEBULA ATTRIBUTES ===")
     with OnedServerProxy() as client:
         cluster_info = client('one.clusterpool.info')
-        if 'CLUSTER_POOL' in cluster_info and 'CLUSTER' in cluster_info['CLUSTER_POOL']:
+        if 'CLUSTER_POOL' not in cluster_info or 'CLUSTER' not in cluster_info['CLUSTER_POOL']:
+            print("Could not fetch cluster information")
+        else:
             for cluster in clusters:
                 for c in cluster_info['CLUSTER_POOL']['CLUSTER']:
-                    if int(c['ID']) == cluster.id:
-                        template = c.get('TEMPLATE', {})
-                        print(f"Cluster {cluster.id}: FLAVOURS={template.get('FLAVOURS')}, "
-                              f"IS_CONFIDENTIAL={template.get('IS_CONFIDENTIAL')}, "
-                              f"PROVIDERS={template.get('PROVIDERS')}, ",
-                              f"GEOLOCATION={template.get('GEOLOCATION')}")
-                        break
+                    if int(c['ID']) != cluster.id:
+                        continue
+                    template = c.get('TEMPLATE', {})
+                    print(f"Cluster {cluster.id}: FLAVOURS={template.get('FLAVOURS')}, "
+                          f"IS_CONFIDENTIAL={template.get('IS_CONFIDENTIAL')}, "
+                          f"PROVIDERS={template.get('PROVIDERS')}, ",
+                          f"GEOLOCATION={template.get('GEOLOCATION')}")
+                    break
 
     # Run optimization on filtered clusters
     result = optimize_device_assignments(devices, filtered_clusters)
