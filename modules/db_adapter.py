@@ -1,29 +1,23 @@
 import sys
 from modules.mock_pyoneai import setup_mock
+from modules.config import DB_PATH, DB_CLEANUP_DAYS, COGNIT_FRONTEND_SRC
 
 # Mock pyoneai before importing cognit_conf (required by db_manager)
 setup_mock()
 
-sys.path.insert(0, '/home/ubuntu/cognit-frontend/src')
+sys.path.insert(0, COGNIT_FRONTEND_SRC)
 
 # Import and initialize DBManager once (singleton pattern ensures single instance)
 import db_manager
-_db = db_manager.DBManager(
-    DB_PATH='/home/ubuntu/cognit-frontend/database/device_cluster_assignment.db',
-    DB_CLEANUP_DAYS=30
-)
+_db = db_manager.DBManager(DB_PATH=DB_PATH, DB_CLEANUP_DAYS=DB_CLEANUP_DAYS)
 
 def get_device_assignments():
     """Retrieve all device assignments from database."""
-    device_ids = _db.get_all_device_ids()
-
-    assignments = []
-    for device_id in device_ids:
-        assignment = _db.get_device_assignment(device_id)
-        if assignment:
-            assignments.append(assignment)
-
-    return assignments
+    return [
+        assignment 
+        for device_id in _db.get_all_device_ids() 
+        if (assignment := _db.get_device_assignment(device_id))
+    ]
 
 def update_device_cluster_assignments(allocations):
     """Update device cluster assignments in database only when changed."""
