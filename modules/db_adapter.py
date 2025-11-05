@@ -10,7 +10,7 @@ class MockConf:
 sys.modules['cognit_conf'] = MockConf
 
 def get_device_assignments():
-    """Phase 1: Get device assignments from DB."""
+    """Retrieve all device assignments from database."""
     import db_manager
     db = db_manager.DBManager()
     device_ids = db.get_all_device_ids()
@@ -22,3 +22,22 @@ def get_device_assignments():
             assignments.append(assignment)
 
     return assignments
+
+def update_device_cluster_assignments(allocations):
+    """Update device cluster assignments in database only when changed."""
+    import db_manager
+    db = db_manager.DBManager()
+    updated_count = 0
+    for device_id, new_cluster_id in allocations.items():
+        current = db.get_device_assignment(device_id)
+        if current and current['cluster_id'] != new_cluster_id:
+            db.update_device_assignment(
+                device_id=device_id,
+                cluster_id=new_cluster_id,
+                flavour=current['flavour'],
+                app_req_id=current['app_req_id'],
+                app_req_json=current['app_req_json']
+            )
+            updated_count += 1
+
+    return updated_count
