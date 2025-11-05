@@ -12,7 +12,7 @@ def create_devices_from_assignments(assignments: list[dict]) -> list:
     for assignment in assignments:
         device_id = assignment['device_id']
         load = assignment['estimated_load']
-        capacity_load = 1.0
+        capacity_load = 1.0 # TODO: Check with colleagues
         app_req_id = assignment['app_req_id']
 
         # Get feasible clusters for this device based on app requirements

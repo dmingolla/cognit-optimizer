@@ -2,7 +2,7 @@
 """Main entrypoint for the Cognit Optimizer Daemon."""
 
 import sys
-
+# TODO: Make this a daemon that runs periodically
 def run_optimization_cycle() -> bool:
     """Run single optimization cycle with database updates."""
     from modules.optimizer_adapter import run_optimization_with_db_updates
