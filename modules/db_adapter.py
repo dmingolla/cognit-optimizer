@@ -1,13 +1,27 @@
 import sys
-import os
+
+# Mock pyoneai before importing cognit_conf to avoid dependency
+class MockFloat:
+    pass
+
+class MockMetricType:
+    GAUGE = 'gauge'
+
+class MockMetricAttributes:
+    def __init__(self, name, type, dtype):
+        self.name = name
+        self.type = type
+        self.dtype = dtype
+
+class MockPyoneai:
+    Float = MockFloat
+    MetricType = MockMetricType
+    MetricAttributes = MockMetricAttributes
+
+sys.modules['pyoneai'] = MockPyoneai
+sys.modules['pyoneai.core'] = MockPyoneai
 
 sys.path.insert(0, '/home/ubuntu/cognit-frontend/src')
-
-class MockConf:
-    DB_PATH = '/home/ubuntu/cognit-frontend/database/device_cluster_assignment.db'
-    DB_CLEANUP_DAYS = 30
-
-sys.modules['cognit_conf'] = MockConf
 
 def get_device_assignments():
     """Retrieve all device assignments from database."""

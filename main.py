@@ -3,8 +3,6 @@
 
 import sys
 import logging
-import asyncio
-from contextlib import asynccontextmanager
 
 # Configure logging
 logging.basicConfig(
