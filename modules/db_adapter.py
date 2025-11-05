@@ -1,23 +1,8 @@
 import sys
+from modules.mock_pyoneai import setup_mock
 
 # Mock pyoneai before importing cognit_conf (required by db_manager)
-class MockFloat:
-    pass
-
-class MockMetricType:
-    GAUGE = 'gauge'
-
-class MockMetricAttributes:
-    def __init__(self, name, type, dtype):
-        pass
-
-class MockPyoneai:
-    Float = MockFloat
-    MetricType = MockMetricType
-    MetricAttributes = MockMetricAttributes
-
-sys.modules['pyoneai'] = MockPyoneai
-sys.modules['pyoneai.core'] = MockPyoneai
+setup_mock()
 
 sys.path.insert(0, '/home/ubuntu/cognit-frontend/src')
 
