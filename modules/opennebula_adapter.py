@@ -43,6 +43,7 @@ def get_feasible_clusters_for_device(app_req_id: int) -> list[int]:
     from modules.config import COGNIT_FRONTEND_SRC, ONE_XMLRPC_ENDPOINT
     
     # Clean up sys.path to avoid conflicts with /usr/lib/one/python
+    # TODO: Temporary fix to avoid conflicts with /usr/lib/one/python
     original_path = sys.path.copy()
     sys.path = [p for p in sys.path if '/usr/lib/one/python' not in p]
     sys.path.insert(0, COGNIT_FRONTEND_SRC)

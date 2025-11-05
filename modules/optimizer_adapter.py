@@ -71,8 +71,12 @@ def run_optimization_with_db_updates() -> tuple | None:
     clusters = get_cluster_pool()
     filtered_clusters = [c for c in clusters if c.id in all_feasible_cluster_ids]
 
+    print("\n=== CLUSTER OPTIMIZER ATTRIBUTES ===\n")
+    for cluster in filtered_clusters:
+        print(cluster, "\n")
+
     # Print cluster attributes
-    print("\n=== CLUSTER ATTRIBUTES ===")
+    print("\n=== CLUSTER OPENNEBULA ATTRIBUTES ===")
     with OnedServerProxy() as client:
         cluster_info = client('one.clusterpool.info')
         if 'CLUSTER_POOL' in cluster_info and 'CLUSTER' in cluster_info['CLUSTER_POOL']:
@@ -82,9 +86,8 @@ def run_optimization_with_db_updates() -> tuple | None:
                         template = c.get('TEMPLATE', {})
                         print(f"Cluster {cluster.id}: FLAVOURS={template.get('FLAVOURS')}, "
                               f"IS_CONFIDENTIAL={template.get('IS_CONFIDENTIAL')}, "
-                              f"PROVIDERS={template.get('PROVIDERS')}, "
-                              f"GEOLOCATION={template.get('GEOLOCATION')}, "
-                              f"MAX_CAPACITY={template.get('MAX_CAPACITY')}")
+                              f"PROVIDERS={template.get('PROVIDERS')}, ",
+                              f"GEOLOCATION={template.get('GEOLOCATION')}")
                         break
 
     # Run optimization on filtered clusters
