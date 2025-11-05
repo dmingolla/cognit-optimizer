@@ -2,14 +2,6 @@
 """Main entrypoint for the Cognit Optimizer Daemon."""
 
 import sys
-import logging
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 def run_optimization_cycle():
     """Run single optimization cycle with database updates."""
