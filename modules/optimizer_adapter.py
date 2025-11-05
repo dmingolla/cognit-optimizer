@@ -28,7 +28,7 @@ def create_devices_from_assignments(assignments: list[dict]) -> list:
 
     return devices
 
-def optimize_device_assignments(devices: list, clusters: list) -> tuple | None:
+def optimize_device_assignments(devices: list, clusters: list) -> tuple:
     """Run optimization algorithm on devices and clusters."""
     from device_alloc import DeviceOptimizer
 
@@ -38,7 +38,7 @@ def optimize_device_assignments(devices: list, clusters: list) -> tuple | None:
     if result:
         allocs, n_vms, objective = result
         return allocs, n_vms, objective
-    return None
+    return ()
 
 def run_optimization_with_db_updates() -> tuple | None:
     """Run complete optimization cycle with database updates."""
