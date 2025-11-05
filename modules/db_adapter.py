@@ -11,7 +11,7 @@ sys.path.insert(0, COGNIT_FRONTEND_SRC)
 import db_manager
 _db = db_manager.DBManager(DB_PATH=DB_PATH, DB_CLEANUP_DAYS=DB_CLEANUP_DAYS)
 
-def get_device_assignments():
+def get_device_assignments() -> list[dict]:
     """Retrieve all device assignments from database."""
     return [
         assignment 
@@ -19,7 +19,7 @@ def get_device_assignments():
         if (assignment := _db.get_device_assignment(device_id))
     ]
 
-def update_device_cluster_assignments(allocations):
+def update_device_cluster_assignments(allocations: dict[str, int]) -> int:
     """Update device cluster assignments in database only when changed."""
     updated_count = 0
     for device_id, new_cluster_id in allocations.items():

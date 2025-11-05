@@ -3,13 +3,13 @@
 
 import sys
 
-def run_optimization_cycle():
+def run_optimization_cycle() -> bool:
     """Run single optimization cycle with database updates."""
     from modules.optimizer_adapter import run_optimization_with_db_updates
     result = run_optimization_with_db_updates()
     return result is not None
 
-def main():
+def main() -> int:
     """Main entry point for optimizer."""
     if run_optimization_cycle():
         return 0

@@ -3,7 +3,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-def get_cluster_pool():
+def get_cluster_pool() -> list:
     """Retrieve cluster pool from OpenNebula."""
     from device_alloc.model import create_cluster_pool
     from device_alloc.xmlrpc_client import OnedServerProxy
@@ -11,7 +11,7 @@ def get_cluster_pool():
     with OnedServerProxy() as oned_client:
         return create_cluster_pool(oned_client)
 
-def get_app_requirement(app_req_id: int):
+def get_app_requirement(app_req_id: int) -> dict:
     """Retrieve app requirement from OpenNebula by ID using OnedServerProxy."""
     from device_alloc.xmlrpc_client import OnedServerProxy
 
@@ -26,7 +26,7 @@ def get_app_requirement(app_req_id: int):
     except Exception:
         return {}
 
-def get_feasible_clusters_for_device(app_req_id: int):
+def get_feasible_clusters_for_device(app_req_id: int) -> list[int]:
     """Get feasible cluster IDs for a device based on its app requirements using clusters_ids_get."""
     # Get fresh app requirements from OpenNebula
     app_req = get_app_requirement(app_req_id)
