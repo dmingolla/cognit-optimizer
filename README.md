@@ -56,3 +56,19 @@ The optimizer periodically:
    ```bash
    pip install -r requirements.txt
    ```
+
+## Usage
+
+**Run single optimization cycle:**
+```bash
+python main.py
+```
+
+**Run as daemon (continuous mode):**
+```bash
+# Use default interval (300 seconds)
+python main.py --daemon
+
+# Use custom interval
+python main.py --daemon --interval 60
+```

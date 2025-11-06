@@ -1,29 +1,44 @@
 import sys
-import os
+from modules.config import DOCUMENT_KEY, TEMPLATE_KEY, CLUSTER_POOL_KEY, CLUSTER_KEY, ID_KEY
+from typing import Any
 
-sys.path.insert(0, os.path.dirname(__file__))
-
-def get_cluster_pool() -> list:
-    """Retrieve cluster pool from OpenNebula."""
-    from device_alloc.model import create_cluster_pool
-    from device_alloc.xmlrpc_client import OnedServerProxy
+def get_cluster_pool() -> tuple[list, dict[int, dict[str, Any]]]:
+    """Retrieve cluster pool from OpenNebula and return both Cluster objects and raw cluster info lookup."""
+    from device_alloc import create_cluster_pool, OnedServerProxy
 
     with OnedServerProxy() as oned_client:
-        return create_cluster_pool(oned_client)
+        clusters = create_cluster_pool(oned_client)
+        
+        # Also fetch raw cluster info for template access
+        cluster_info = oned_client('one.clusterpool.info')
+        lookup = {}
+        
+        if CLUSTER_POOL_KEY in cluster_info and CLUSTER_KEY in cluster_info[CLUSTER_POOL_KEY]:
+            clusters_data = cluster_info[CLUSTER_POOL_KEY][CLUSTER_KEY]
+            clusters_list = clusters_data if isinstance(clusters_data, list) else [clusters_data]
+            for c in clusters_list:
+                cluster_id = int(c[ID_KEY])
+                lookup[cluster_id] = c.get(TEMPLATE_KEY, {})
+        
+        return clusters, lookup
 
 def get_app_requirement(app_req_id: int) -> dict:
     """Retrieve app requirement from OpenNebula by ID using OnedServerProxy."""
-    from device_alloc.xmlrpc_client import OnedServerProxy
+    from device_alloc import OnedServerProxy
+    from modules.logger import get_logger
+    
+    logger = get_logger(__name__)
 
     try:
         with OnedServerProxy() as client:
             # Get document info
             result = client('one.document.info', app_req_id)
-            if result and 'DOCUMENT' in result:
+            if result and DOCUMENT_KEY in result:
                 # Parse the template which contains the app requirements
-                template = result['DOCUMENT'].get('TEMPLATE', {})
+                template = result[DOCUMENT_KEY].get(TEMPLATE_KEY, {})
                 return template
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to fetch app requirement {app_req_id}: {e}")
         return {}
 
 def get_feasible_clusters_for_device(app_req_id: int) -> list[int]:
@@ -43,6 +58,7 @@ def get_feasible_clusters_for_device(app_req_id: int) -> list[int]:
     from modules.config import COGNIT_FRONTEND_SRC, ONE_XMLRPC_ENDPOINT
     
     # Clean up sys.path to avoid conflicts with /usr/lib/one/python
+    # TODO: Temporary fix to avoid conflicts with /usr/lib/one/python
     original_path = sys.path.copy()
     sys.path = [p for p in sys.path if '/usr/lib/one/python' not in p]
     sys.path.insert(0, COGNIT_FRONTEND_SRC)
@@ -52,7 +68,7 @@ def get_feasible_clusters_for_device(app_req_id: int) -> list[int]:
         import pyone
 
         # Create pyone client using OnedServerProxy credentials
-        from device_alloc.xmlrpc_client import OnedServerProxy
+        from device_alloc import OnedServerProxy
         with OnedServerProxy() as proxy:
             # Get session from OnedServerProxy
             one = pyone.OneServer(ONE_XMLRPC_ENDPOINT, session=proxy._session)
