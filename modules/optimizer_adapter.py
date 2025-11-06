@@ -21,20 +21,6 @@ def _format_cluster_attributes(cluster_id: int, template: dict[str, Any]) -> str
             f"GEOLOCATION={template.get('GEOLOCATION')}, "
             f"CARBON_INTENSITY={template.get('CARBON_INTENSITY')}")
 
-def _get_cluster_info_lookup(client: Any) -> dict[int, dict[str, Any]]:
-    """Build a lookup dict mapping cluster ID to template."""
-    cluster_info = client('one.clusterpool.info')
-    lookup = {}
-    
-    if CLUSTER_POOL_KEY in cluster_info and CLUSTER_KEY in cluster_info[CLUSTER_POOL_KEY]:
-        clusters = cluster_info[CLUSTER_POOL_KEY][CLUSTER_KEY]
-        clusters_list = clusters if isinstance(clusters, list) else [clusters]
-        for c in clusters_list:
-            cluster_id = int(c[ID_KEY])
-            lookup[cluster_id] = c.get(TEMPLATE_KEY, {})
-    
-    return lookup
-
 def create_devices_from_assignments(assignments: list[dict]) -> list:
     """Create Device objects for the optimization algorithm from database assignments with per-device feasible clusters."""
     from device_alloc import Device
@@ -95,7 +81,7 @@ def run_optimization_with_db_updates() -> tuple | None:
     # Filter cluster pool to only include clusters that are feasible for at least one device
     all_feasible_cluster_ids = {cid for device in devices for cid in device.cluster_ids}
 
-    clusters = get_cluster_pool()
+    clusters, cluster_lookup = get_cluster_pool()
     filtered_clusters = [c for c in clusters if c.id in all_feasible_cluster_ids]
 
     logger.info("=== CLUSTER OPTIMIZER ATTRIBUTES ===")
@@ -103,17 +89,14 @@ def run_optimization_with_db_updates() -> tuple | None:
         logger.info(str(cluster))
 
     logger.info("=== CLUSTER OPENNEBULA ATTRIBUTES ===")
-    with OnedServerProxy() as client:
-        cluster_info = client('one.clusterpool.info')
-        if CLUSTER_POOL_KEY not in cluster_info or CLUSTER_KEY not in cluster_info[CLUSTER_POOL_KEY]:
-            logger.warning("Could not fetch cluster information")
-        else:
-            cluster_lookup = _get_cluster_info_lookup(client)
-            for cluster in clusters:
-                if cluster.id in cluster_lookup:
-                    logger.info(_format_cluster_attributes(cluster.id, cluster_lookup[cluster.id]))
-                else:
-                    logger.warning(f"Cluster {cluster.id} not found in OpenNebula cluster pool")
+    if not cluster_lookup:
+        logger.warning("Could not fetch cluster information")
+    else:
+        for cluster in clusters:
+            if cluster.id in cluster_lookup:
+                logger.info(_format_cluster_attributes(cluster.id, cluster_lookup[cluster.id]))
+            else:
+                logger.warning(f"Cluster {cluster.id} not found in OpenNebula cluster pool")
 
     # Run optimization on filtered clusters
     result = optimize_device_assignments(devices, filtered_clusters)

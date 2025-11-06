@@ -1,12 +1,26 @@
 import sys
-from modules.config import DOCUMENT_KEY, TEMPLATE_KEY
+from modules.config import DOCUMENT_KEY, TEMPLATE_KEY, CLUSTER_POOL_KEY, CLUSTER_KEY, ID_KEY
+from typing import Any
 
-def get_cluster_pool() -> list:
-    """Retrieve cluster pool from OpenNebula."""
+def get_cluster_pool() -> tuple[list, dict[int, dict[str, Any]]]:
+    """Retrieve cluster pool from OpenNebula and return both Cluster objects and raw cluster info lookup."""
     from device_alloc import create_cluster_pool, OnedServerProxy
 
     with OnedServerProxy() as oned_client:
-        return create_cluster_pool(oned_client)
+        clusters = create_cluster_pool(oned_client)
+        
+        # Also fetch raw cluster info for template access
+        cluster_info = oned_client('one.clusterpool.info')
+        lookup = {}
+        
+        if CLUSTER_POOL_KEY in cluster_info and CLUSTER_KEY in cluster_info[CLUSTER_POOL_KEY]:
+            clusters_data = cluster_info[CLUSTER_POOL_KEY][CLUSTER_KEY]
+            clusters_list = clusters_data if isinstance(clusters_data, list) else [clusters_data]
+            for c in clusters_list:
+                cluster_id = int(c[ID_KEY])
+                lookup[cluster_id] = c.get(TEMPLATE_KEY, {})
+        
+        return clusters, lookup
 
 def get_app_requirement(app_req_id: int) -> dict:
     """Retrieve app requirement from OpenNebula by ID using OnedServerProxy."""
