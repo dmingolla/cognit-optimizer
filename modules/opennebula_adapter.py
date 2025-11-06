@@ -25,6 +25,9 @@ def get_cluster_pool() -> tuple[list, dict[int, dict[str, Any]]]:
 def get_app_requirement(app_req_id: int) -> dict:
     """Retrieve app requirement from OpenNebula by ID using OnedServerProxy."""
     from device_alloc import OnedServerProxy
+    from modules.logger import get_logger
+    
+    logger = get_logger(__name__)
 
     try:
         with OnedServerProxy() as client:
@@ -34,7 +37,8 @@ def get_app_requirement(app_req_id: int) -> dict:
                 # Parse the template which contains the app requirements
                 template = result[DOCUMENT_KEY].get(TEMPLATE_KEY, {})
                 return template
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to fetch app requirement {app_req_id}: {e}")
         return {}
 
 def get_feasible_clusters_for_device(app_req_id: int) -> list[int]:

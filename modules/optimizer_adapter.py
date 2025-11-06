@@ -62,52 +62,56 @@ def run_optimization_with_db_updates() -> tuple | None:
     """Run complete optimization cycle with database updates."""
     from modules.db_adapter import get_device_assignments, update_device_cluster_assignments
     from modules.opennebula_adapter import get_cluster_pool, get_app_requirement
-    from device_alloc import OnedServerProxy
 
-    assignments = get_device_assignments()
-    
-    logger.info("=== DEVICE REQUIREMENTS ===")
-    for assignment in assignments:
-        device_id = assignment['device_id']
-        app_req_id = assignment['app_req_id']
-        app_req = get_app_requirement(app_req_id)
-        if not app_req:
-            logger.warning(f"{device_id}: Could not fetch app requirements (app_req_id={app_req_id})")
-            continue
-        logger.info(_format_device_requirements(device_id, app_req))
-    
-    devices = create_devices_from_assignments(assignments)
-
-    # Filter cluster pool to only include clusters that are feasible for at least one device
-    all_feasible_cluster_ids = {cid for device in devices for cid in device.cluster_ids}
-
-    clusters, cluster_lookup = get_cluster_pool()
-    filtered_clusters = [c for c in clusters if c.id in all_feasible_cluster_ids]
-
-    logger.info("=== CLUSTER OPTIMIZER ATTRIBUTES ===")
-    for cluster in filtered_clusters:
-        logger.info(str(cluster))
-
-    logger.info("=== CLUSTER OPENNEBULA ATTRIBUTES ===")
-    if not cluster_lookup:
-        logger.warning("Could not fetch cluster information")
-    else:
-        for cluster in clusters:
-            if cluster.id in cluster_lookup:
-                logger.info(_format_cluster_attributes(cluster.id, cluster_lookup[cluster.id]))
-            else:
-                logger.warning(f"Cluster {cluster.id} not found in OpenNebula cluster pool")
-
-    # Run optimization on filtered clusters
-    result = optimize_device_assignments(devices, filtered_clusters)
-
-    if result:
-        allocs, n_vms, objective = result
-        logger.info("=== OPTIMIZATION RESULT ===")
-        for device_id, cluster_id in allocs.items():
-            logger.info(f"{device_id} -> Cluster {cluster_id}")
+    try:
+        assignments = get_device_assignments()
         
-        updated_count = update_device_cluster_assignments(allocs)
-        logger.info(f"Database updates: {updated_count} devices changed assignment")
+        logger.info("=== DEVICE REQUIREMENTS ===")
+        for assignment in assignments:
+            device_id = assignment['device_id']
+            app_req_id = assignment['app_req_id']
+            app_req = get_app_requirement(app_req_id)
+            if not app_req:
+                logger.warning(f"{device_id}: Could not fetch app requirements (app_req_id={app_req_id})")
+                continue
+            logger.info(_format_device_requirements(device_id, app_req))
+        
+        devices = create_devices_from_assignments(assignments)
 
-    return result
+        # Filter cluster pool to only include clusters that are feasible for at least one device
+        all_feasible_cluster_ids = {cid for device in devices for cid in device.cluster_ids}
+
+        clusters, cluster_lookup = get_cluster_pool()
+        filtered_clusters = [c for c in clusters if c.id in all_feasible_cluster_ids]
+
+        logger.info("=== CLUSTER OPTIMIZER ATTRIBUTES ===")
+        for cluster in filtered_clusters:
+            logger.info(str(cluster))
+
+        logger.info("=== CLUSTER OPENNEBULA ATTRIBUTES ===")
+        if not cluster_lookup:
+            logger.warning("Could not fetch cluster information")
+        else:
+            for cluster in clusters:
+                if cluster.id in cluster_lookup:
+                    logger.info(_format_cluster_attributes(cluster.id, cluster_lookup[cluster.id]))
+                else:
+                    logger.warning(f"Cluster {cluster.id} not found in OpenNebula cluster pool")
+
+        # Run optimization on filtered clusters
+        result = optimize_device_assignments(devices, filtered_clusters)
+
+        if result:
+            allocs, n_vms, objective = result
+            logger.info("=== OPTIMIZATION RESULT ===")
+            for device_id, cluster_id in allocs.items():
+                logger.info(f"{device_id} -> Cluster {cluster_id}")
+            
+            updated_count = update_device_cluster_assignments(allocs)
+            logger.info(f"Database updates: {updated_count} devices changed assignment")
+
+        return result
+    
+    except Exception as e:
+        logger.error(f"Optimization cycle failed: {e}", exc_info=True)
+        return None
