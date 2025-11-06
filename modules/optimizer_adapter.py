@@ -1,10 +1,38 @@
-import sys
-import os
-
-sys.path.insert(0, os.path.dirname(__file__))
-
+from typing import Any
 from modules.logger import get_logger
+
 logger = get_logger(__name__)
+
+
+def _format_device_requirements(device_id: str, app_req: dict[str, Any]) -> str:
+    """Format device requirements for logging."""
+    return (f"{device_id}: FLAVOUR={app_req.get('FLAVOUR')}, "
+            f"IS_CONFIDENTIAL={app_req.get('IS_CONFIDENTIAL')}, "
+            f"PROVIDERS={app_req.get('PROVIDERS')}, "
+            f"GEOLOCATION={app_req.get('GEOLOCATION')}")
+
+
+def _format_cluster_attributes(cluster_id: int, template: dict[str, Any]) -> str:
+    """Format cluster attributes for logging."""
+    return (f"Cluster {cluster_id}: FLAVOURS={template.get('FLAVOURS')}, "
+            f"IS_CONFIDENTIAL={template.get('IS_CONFIDENTIAL')}, "
+            f"PROVIDERS={template.get('PROVIDERS')}, "
+            f"GEOLOCATION={template.get('GEOLOCATION')}, "
+            f"CARBON_INTENSITY={template.get('CARBON_INTENSITY')}")
+
+def _get_cluster_info_lookup(client: Any) -> dict[int, dict[str, Any]]:
+    """Build a lookup dict mapping cluster ID to template."""
+    cluster_info = client('one.clusterpool.info')
+    lookup = {}
+    
+    if 'CLUSTER_POOL' in cluster_info and 'CLUSTER' in cluster_info['CLUSTER_POOL']:
+        clusters = cluster_info['CLUSTER_POOL']['CLUSTER']
+        clusters_list = clusters if isinstance(clusters, list) else [clusters]
+        for c in clusters_list:
+            cluster_id = int(c['ID'])
+            lookup[cluster_id] = c.get('TEMPLATE', {})
+    
+    return lookup
 
 def create_devices_from_assignments(assignments: list[dict]) -> list:
     """Create Device objects for the optimization algorithm from database assignments with per-device feasible clusters."""
@@ -15,7 +43,7 @@ def create_devices_from_assignments(assignments: list[dict]) -> list:
     for assignment in assignments:
         device_id = assignment['device_id']
         load = assignment['estimated_load']
-        capacity_load = 1.0 # TODO: Check with colleagues
+        capacity_load = 1.0  # TODO: Check with colleagues
         app_req_id = assignment['app_req_id']
 
         # Get feasible clusters for this device based on app requirements
@@ -59,15 +87,12 @@ def run_optimization_with_db_updates() -> tuple | None:
         if not app_req:
             logger.warning(f"{device_id}: Could not fetch app requirements (app_req_id={app_req_id})")
             continue
-        logger.info(f"{device_id}: FLAVOUR={app_req.get('FLAVOUR')}, IS_CONFIDENTIAL={app_req.get('IS_CONFIDENTIAL')}, "
-                    f"PROVIDERS={app_req.get('PROVIDERS')}, GEOLOCATION={app_req.get('GEOLOCATION')}")
+        logger.info(_format_device_requirements(device_id, app_req))
     
     devices = create_devices_from_assignments(assignments)
 
     # Filter cluster pool to only include clusters that are feasible for at least one device
-    all_feasible_cluster_ids = set()
-    for device in devices:
-        all_feasible_cluster_ids.update(device.cluster_ids)
+    all_feasible_cluster_ids = {cid for device in devices for cid in device.cluster_ids}
 
     clusters = get_cluster_pool()
     filtered_clusters = [c for c in clusters if c.id in all_feasible_cluster_ids]
@@ -82,17 +107,12 @@ def run_optimization_with_db_updates() -> tuple | None:
         if 'CLUSTER_POOL' not in cluster_info or 'CLUSTER' not in cluster_info['CLUSTER_POOL']:
             logger.warning("Could not fetch cluster information")
         else:
+            cluster_lookup = _get_cluster_info_lookup(client)
             for cluster in clusters:
-                for c in cluster_info['CLUSTER_POOL']['CLUSTER']:
-                    if int(c['ID']) != cluster.id:
-                        continue
-                    template = c.get('TEMPLATE', {})
-                    logger.info(f"Cluster {cluster.id}: FLAVOURS={template.get('FLAVOURS')}, "
-                               f"IS_CONFIDENTIAL={template.get('IS_CONFIDENTIAL')}, "
-                               f"PROVIDERS={template.get('PROVIDERS')}, "
-                               f"GEOLOCATION={template.get('GEOLOCATION')}, "
-                               f"CARBON_INTENSITY={template.get('CARBON_INTENSITY')}")
-                    break
+                if cluster.id in cluster_lookup:
+                    logger.info(_format_cluster_attributes(cluster.id, cluster_lookup[cluster.id]))
+                else:
+                    logger.warning(f"Cluster {cluster.id} not found in OpenNebula cluster pool")
 
     # Run optimization on filtered clusters
     result = optimize_device_assignments(devices, filtered_clusters)

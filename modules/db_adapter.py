@@ -5,10 +5,16 @@ from modules.config import DB_PATH, DB_CLEANUP_DAYS, COGNIT_FRONTEND_SRC
 # Mock pyoneai before importing cognit_conf (required by db_manager)
 setup_mock()
 
+# Temporarily add cognit-frontend/src to import db_manager
+original_path = sys.path.copy()
 sys.path.insert(0, COGNIT_FRONTEND_SRC)
 
-# Import and initialize DBManager once (singleton pattern ensures single instance)
-import db_manager
+try:
+    import db_manager
+finally:
+    sys.path = original_path
+
+# Initialize DBManager once (singleton pattern ensures single instance)
 _db = db_manager.DBManager(DB_PATH=DB_PATH, DB_CLEANUP_DAYS=DB_CLEANUP_DAYS)
 
 def get_device_assignments() -> list[dict]:

@@ -1,7 +1,4 @@
 import sys
-import os
-
-sys.path.insert(0, os.path.dirname(__file__))
 
 def get_cluster_pool() -> list:
     """Retrieve cluster pool from OpenNebula."""
