@@ -1,4 +1,5 @@
 import sys
+from modules.config import DOCUMENT_KEY, TEMPLATE_KEY
 
 def get_cluster_pool() -> list:
     """Retrieve cluster pool from OpenNebula."""
@@ -15,9 +16,9 @@ def get_app_requirement(app_req_id: int) -> dict:
         with OnedServerProxy() as client:
             # Get document info
             result = client('one.document.info', app_req_id)
-            if result and 'DOCUMENT' in result:
+            if result and DOCUMENT_KEY in result:
                 # Parse the template which contains the app requirements
-                template = result['DOCUMENT'].get('TEMPLATE', {})
+                template = result[DOCUMENT_KEY].get(TEMPLATE_KEY, {})
                 return template
     except Exception:
         return {}

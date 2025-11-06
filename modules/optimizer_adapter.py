@@ -1,5 +1,6 @@
 from typing import Any
 from modules.logger import get_logger
+from modules.config import CLUSTER_POOL_KEY, CLUSTER_KEY, TEMPLATE_KEY, ID_KEY
 
 logger = get_logger(__name__)
 
@@ -25,12 +26,12 @@ def _get_cluster_info_lookup(client: Any) -> dict[int, dict[str, Any]]:
     cluster_info = client('one.clusterpool.info')
     lookup = {}
     
-    if 'CLUSTER_POOL' in cluster_info and 'CLUSTER' in cluster_info['CLUSTER_POOL']:
-        clusters = cluster_info['CLUSTER_POOL']['CLUSTER']
+    if CLUSTER_POOL_KEY in cluster_info and CLUSTER_KEY in cluster_info[CLUSTER_POOL_KEY]:
+        clusters = cluster_info[CLUSTER_POOL_KEY][CLUSTER_KEY]
         clusters_list = clusters if isinstance(clusters, list) else [clusters]
         for c in clusters_list:
-            cluster_id = int(c['ID'])
-            lookup[cluster_id] = c.get('TEMPLATE', {})
+            cluster_id = int(c[ID_KEY])
+            lookup[cluster_id] = c.get(TEMPLATE_KEY, {})
     
     return lookup
 
@@ -104,7 +105,7 @@ def run_optimization_with_db_updates() -> tuple | None:
     logger.info("=== CLUSTER OPENNEBULA ATTRIBUTES ===")
     with OnedServerProxy() as client:
         cluster_info = client('one.clusterpool.info')
-        if 'CLUSTER_POOL' not in cluster_info or 'CLUSTER' not in cluster_info['CLUSTER_POOL']:
+        if CLUSTER_POOL_KEY not in cluster_info or CLUSTER_KEY not in cluster_info[CLUSTER_POOL_KEY]:
             logger.warning("Could not fetch cluster information")
         else:
             cluster_lookup = _get_cluster_info_lookup(client)
