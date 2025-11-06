@@ -90,7 +90,8 @@ def run_optimization_with_db_updates() -> tuple | None:
                     logger.info(f"Cluster {cluster.id}: FLAVOURS={template.get('FLAVOURS')}, "
                                f"IS_CONFIDENTIAL={template.get('IS_CONFIDENTIAL')}, "
                                f"PROVIDERS={template.get('PROVIDERS')}, "
-                               f"GEOLOCATION={template.get('GEOLOCATION')}")
+                               f"GEOLOCATION={template.get('GEOLOCATION')}, "
+                               f"CARBON_INTENSITY={template.get('CARBON_INTENSITY')}")
                     break
 
     # Run optimization on filtered clusters

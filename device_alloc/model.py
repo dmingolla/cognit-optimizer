@@ -50,7 +50,8 @@ def create_cluster_pool(oned_client: OnedServerProxy) -> list[Cluster]:
     for cluster in clusters:
         n_vms = 0.0
         cpu_total = 0.0
-        ghg = 0.0
+        cluster_template = cluster.get('TEMPLATE', {})
+        ghg = float(cluster_template.get('CARBON_INTENSITY', 0.0))
         # host_ids = [int(id_) for id_ in _as_list(cluster['HOSTS']['ID'])]
         host_ids = _as_list(cluster['HOSTS']['ID'])
         for host_id in host_ids:
@@ -58,7 +59,6 @@ def create_cluster_pool(oned_client: OnedServerProxy) -> list[Cluster]:
             if (vm_ids := host['VMS']) is not None:
                 n_vms += len(_as_list(vm_ids['ID']))
             cpu_total += float(host['HOST_SHARE']['TOTAL_CPU']) / 100.0
-            ghg = host['MONITORING']['SYSTEM'].get('CARBON_INTENSITY', 0.0)
             template = host['TEMPLATE']
             if 'CPU_ENERGY' in template:
                 cpu_energy = template['CPU_ENERGY']
