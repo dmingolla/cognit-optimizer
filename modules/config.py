@@ -1,12 +1,16 @@
+import os
+
 # Database configuration
-DB_PATH = '/home/ubuntu/cognit-frontend/database/device_cluster_assignment.db'
+DB_PATH = '/root/cognit-frontend/database/device_cluster_assignment.db'
 DB_CLEANUP_DAYS = 30
 
 # Cognit frontend paths
-COGNIT_FRONTEND_SRC = '/home/ubuntu/cognit-frontend/src'
+COGNIT_FRONTEND_SRC = '/root/cognit-frontend/src'
 
 # OpenNebula configuration
-ONE_XMLRPC_ENDPOINT = 'http://localhost:2633/RPC2'
+ONE_XMLRPC_ENDPOINT = os.getenv('ONE_XMLRPC_ENDPOINT')
+ONE_AUTH_USER = os.getenv('ONE_AUTH_USER')
+ONE_AUTH_PASSWORD = os.getenv('ONE_AUTH_PASSWORD')
 
 # OpenNebula API response keys
 CLUSTER_POOL_KEY = 'CLUSTER_POOL'

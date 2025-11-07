@@ -1,6 +1,14 @@
 from dataclasses import dataclass, field
 from math import floor, inf, isclose
-from typing import Any, Self
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
+else:
+    try:
+        from typing import Self  # Python 3.11+
+    except ImportError:
+        from typing_extensions import Self  # Python 3.10 fallback
 
 from .xmlrpc_client import OnedServerProxy
 

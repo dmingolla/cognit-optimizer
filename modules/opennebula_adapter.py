@@ -1,12 +1,16 @@
 import sys
-from modules.config import DOCUMENT_KEY, TEMPLATE_KEY, CLUSTER_POOL_KEY, CLUSTER_KEY, ID_KEY
+from modules.config import (
+    DOCUMENT_KEY, TEMPLATE_KEY, CLUSTER_POOL_KEY, CLUSTER_KEY, ID_KEY,
+    ONE_XMLRPC_ENDPOINT, ONE_AUTH_USER, ONE_AUTH_PASSWORD
+)
 from typing import Any
 
 def get_cluster_pool() -> tuple[list, dict[int, dict[str, Any]]]:
     """Retrieve cluster pool from OpenNebula and return both Cluster objects and raw cluster info lookup."""
     from device_alloc import create_cluster_pool, OnedServerProxy
 
-    with OnedServerProxy() as oned_client:
+    session = f"{ONE_AUTH_USER}:{ONE_AUTH_PASSWORD}"
+    with OnedServerProxy(uri=ONE_XMLRPC_ENDPOINT, session=session) as oned_client:
         clusters = create_cluster_pool(oned_client)
         
         # Also fetch raw cluster info for template access
@@ -30,7 +34,8 @@ def get_app_requirement(app_req_id: int) -> dict:
     logger = get_logger(__name__)
 
     try:
-        with OnedServerProxy() as client:
+        session = f"{ONE_AUTH_USER}:{ONE_AUTH_PASSWORD}"
+        with OnedServerProxy(uri=ONE_XMLRPC_ENDPOINT, session=session) as client:
             # Get document info
             result = client('one.document.info', app_req_id)
             if result and DOCUMENT_KEY in result:
@@ -55,7 +60,7 @@ def get_feasible_clusters_for_device(app_req_id: int) -> list[int]:
     providers = app_req.get('PROVIDERS')
     
     # Use clusters_ids_get from cognit-frontend
-    from modules.config import COGNIT_FRONTEND_SRC, ONE_XMLRPC_ENDPOINT
+    from modules.config import COGNIT_FRONTEND_SRC
     
     # Clean up sys.path to avoid conflicts with /usr/lib/one/python
     # TODO: Temporary fix to avoid conflicts with /usr/lib/one/python
@@ -67,19 +72,17 @@ def get_feasible_clusters_for_device(app_req_id: int) -> list[int]:
         import opennebula as on
         import pyone
 
-        # Create pyone client using OnedServerProxy credentials
-        from device_alloc import OnedServerProxy
-        with OnedServerProxy() as proxy:
-            # Get session from OnedServerProxy
-            one = pyone.OneServer(ONE_XMLRPC_ENDPOINT, session=proxy._session)
-            
-            feasible_cluster_ids = on.clusters_ids_get(
-                one=one,
-                geolocation=geolocation,
-                flavour=flavour,
-                is_confidential=is_confidential,
-                providers=providers
-            )
+        # Create pyone client using credentials from config
+        session = f"{ONE_AUTH_USER}:{ONE_AUTH_PASSWORD}"
+        one = pyone.OneServer(ONE_XMLRPC_ENDPOINT, session=session)
+        
+        feasible_cluster_ids = on.clusters_ids_get(
+            one=one,
+            geolocation=geolocation,
+            flavour=flavour,
+            is_confidential=is_confidential,
+            providers=providers
+        )
 
         return feasible_cluster_ids
     finally:

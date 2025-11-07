@@ -14,9 +14,17 @@ __all__ = [
 
 from os.path import expanduser, join as path_join, exists as path_exists
 from types import TracebackType
-from typing import Any, Literal, Self, Union
+from typing import Any, Literal, Union, TYPE_CHECKING
 from xml.etree.ElementTree import Element, ParseError, fromstring
 from xmlrpc.client import ServerProxy
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
+else:
+    try:
+        from typing import Self  # Python 3.11+
+    except ImportError:
+        from typing_extensions import Self  # Python 3.10 fallback
 
 # ERRORS ===============================================================
 

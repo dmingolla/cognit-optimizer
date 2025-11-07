@@ -29,3 +29,6 @@ Thumbs.db
 
 # Config files
 *.conf
+
+# Environment variables (contains secrets)
+.env

@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Main entrypoint for the Cognit Optimizer Daemon."""
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import sys
 import argparse
 import time
