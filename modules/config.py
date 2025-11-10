@@ -1,7 +1,7 @@
 import os
 
 # Database configuration
-DB_PATH = '/root/cognit-frontend/database/device_cluster_assignment.db'
+DB_PATH = '/root/devices_local_database/device_cluster_assignment.db'
 DB_CLEANUP_DAYS = 30
 
 # Cognit frontend paths
