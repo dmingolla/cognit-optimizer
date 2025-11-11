@@ -1,6 +1,6 @@
 from typing import Any
 from modules.logger import get_logger
-from modules.config import CLUSTER_POOL_KEY, CLUSTER_KEY, TEMPLATE_KEY, ID_KEY
+from modules.cluster_scaler import scale_clusters
 
 logger = get_logger(__name__)
 
@@ -59,7 +59,7 @@ def optimize_device_assignments(devices: list, clusters: list) -> tuple:
     return ()
 
 def run_optimization_with_db_updates() -> tuple | None:
-    """Run complete optimization cycle with database updates."""
+    """Run complete optimization cycle with devices database updates."""
     from modules.db_adapter import get_device_assignments, update_device_cluster_assignments
     from modules.opennebula_adapter import get_cluster_pool, get_app_requirement
 
@@ -107,14 +107,21 @@ def run_optimization_with_db_updates() -> tuple | None:
             for device_id, cluster_id in allocs.items():
                 logger.info(f"{device_id} -> Cluster {cluster_id}")
             
-            updated_count = update_device_cluster_assignments(allocs)
-            logger.info(f"Database updates: {updated_count} devices changed assignment")
-            
             # Scale clusters based on optimizer output
-            from modules.cluster_scaler import scale_clusters
-            # TODO: Remove this
-            #n_vms[113] = 2
-            scale_clusters(n_vms)
+            successfully_scaled_clusters = scale_clusters(n_vms)
+            
+            # Update database only for devices assigned to successfully scaled clusters
+            if successfully_scaled_clusters:
+                scaled_cluster_set = set(successfully_scaled_clusters)
+                filtered_allocs = {
+                    device_id: cluster_id 
+                    for device_id, cluster_id in allocs.items() 
+                    if cluster_id in scaled_cluster_set
+                }
+                updated_count = update_device_cluster_assignments(filtered_allocs)
+                logger.info(f"Database updates: {updated_count} devices updated for successfully scaled clusters")
+            else:
+                logger.warning("No clusters were successfully scaled, database not updated")
 
         return result
     

@@ -56,7 +56,7 @@ def construct_endpoint(cluster_template: dict, flavour: str, target_cardinality:
 def call_scale_endpoint(endpoint: str) -> bool:
     """Call the scaling endpoint with POST request."""
     try:
-        response = requests.post(endpoint)
+        response = requests.post(endpoint, verify=False)
         success = response.status_code in [200, 201, 202]
         if success:
             logger.info(f"Successfully scaled cluster via {endpoint} (status: {response.status_code})")
@@ -100,26 +100,30 @@ def scale_cluster(cluster_id: int, target_cardinality: int) -> bool:
     return call_scale_endpoint(endpoint)
 
 
-def scale_clusters(n_vms: dict[int, int]) -> None:
+def scale_clusters(n_vms: dict[int, int]) -> list[int]:
     """Scale all clusters based on optimizer output.
     
     Args:
         n_vms: Dictionary mapping cluster_id -> target_cardinality (number of VMs)
+        
+    Returns:
+        List of cluster IDs that were successfully scaled
     """
     logger.info("=== CLUSTER SCALING ===")
     
     clusters_to_scale = {cid: cardinality for cid, cardinality in n_vms.items() if cardinality > 0}
     if not clusters_to_scale:
         logger.info("No clusters to scale")
-        return
+        return []
     
     logger.info(f"Scaling {len(clusters_to_scale)} clusters")
     
-    success_count = 0
+    successfully_scaled = []
     for cluster_id, target_cardinality in clusters_to_scale.items():
         logger.info(f"Scaling cluster {cluster_id} to {target_cardinality} VMs")
         if scale_cluster(cluster_id, target_cardinality):
-            success_count += 1
+            successfully_scaled.append(cluster_id)
     
-    logger.info(f"Cluster scaling completed: {success_count}/{len(clusters_to_scale)} successful")
+    logger.info(f"Cluster scaling completed: {len(successfully_scaled)}/{len(clusters_to_scale)} successful")
+    return successfully_scaled
 
