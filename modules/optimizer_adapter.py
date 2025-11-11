@@ -109,6 +109,12 @@ def run_optimization_with_db_updates() -> tuple | None:
             
             updated_count = update_device_cluster_assignments(allocs)
             logger.info(f"Database updates: {updated_count} devices changed assignment")
+            
+            # Scale clusters based on optimizer output
+            from modules.cluster_scaler import scale_clusters
+            # TODO: Remove this
+            #n_vms[113] = 2
+            scale_clusters(n_vms)
 
         return result
     
