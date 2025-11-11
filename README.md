@@ -9,7 +9,8 @@ The optimizer periodically:
 2. Fetches each device's application requirements from OpenNebula using the app_req_id
 3. Filters feasible clusters based on device constraints (flavour, confidentiality, providers, geolocation)
 4. Runs MILP optimization to find optimal cluster assignments that minimize energy/carbon
-5. Updates the cluster_id in the database for devices that should be reassigned
+5. Scales clusters in parallel based on optimizer output via cluster scaling endpoints
+6. Updates the cluster_id in the database for devices assigned to successfully scaled clusters
 
 ## Database Integration
 
@@ -27,7 +28,8 @@ The optimizer periodically:
 - Reads all device assignments from the database
 - Uses `app_req_id` to fetch fresh requirements from OpenNebula
 - Optimizes assignments considering all devices simultaneously
-- Updates `cluster_id` in the database when better assignments are found
+- Scales clusters in parallel via cluster scaling endpoints
+- Updates `cluster_id` in the database incrementally as clusters finish scaling
 
 ## Dependencies
 
