@@ -1,6 +1,5 @@
 """Module for scaling clusters based on optimizer output."""
 
-from tkinter import FALSE
 import requests
 from urllib3.exceptions import InsecureRequestWarning
 from typing import Optional
