@@ -3,8 +3,10 @@
 import requests
 from urllib3.exceptions import InsecureRequestWarning
 from typing import Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from modules.logger import get_logger
 from modules.config import ONE_XMLRPC_ENDPOINT, ONE_AUTH_USER, ONE_AUTH_PASSWORD
+from modules.db_adapter import update_device_cluster_assignments
 
 # Suppress SSL warnings for self-signed certificates
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -79,51 +81,60 @@ def scale_cluster(cluster_id: int, target_cardinality: int) -> bool:
         True if scaling was successful, False otherwise
     """
     
-    # Get cluster template
     cluster_template = get_cluster_template(cluster_id)
     if not cluster_template:
         return False
     
-    # Get flavour from template
     flavour = get_flavour_from_template(cluster_template)
     if not flavour:
         logger.warning(f"Could not determine flavour for cluster {cluster_id}")
         return False
     
-    # Construct endpoint
     endpoint = construct_endpoint(cluster_template, flavour, target_cardinality)
     if not endpoint:
         logger.warning(f"Could not construct endpoint for cluster {cluster_id} (EDGE_CLUSTER_FRONTEND missing)")
         return False
     
-    # Call endpoint
     return call_scale_endpoint(endpoint)
 
 
-def scale_clusters(n_vms: dict[int, int]) -> list[int]:
-    """Scale all clusters based on optimizer output.
+def scale_clusters_and_update_db(n_vms: dict[int, int], allocs: dict) -> int:
+    """
+    Scale clusters in parallel and update DB for each successfully scaled cluster.
     
     Args:
-        n_vms: Dictionary mapping cluster_id -> target_cardinality (number of VMs)
+        n_vms: Cluster ID to target cardinality mapping
+        allocs: Device ID to cluster ID mapping
         
     Returns:
-        List of cluster IDs that were successfully scaled
+        Total number of devices updated in database
     """
+    n_clusters_to_scale = len(n_vms)
     logger.info("=== CLUSTER SCALING ===")
+    logger.info(f"Scaling {n_clusters_to_scale} clusters in parallel")
     
-    clusters_to_scale = {cid: cardinality for cid, cardinality in n_vms.items() if cardinality > 0}
-    if not clusters_to_scale:
-        logger.info("No clusters to scale")
-        return []
+    total_updated = 0
+    max_workers = n_clusters_to_scale
     
-    logger.info(f"Scaling {len(clusters_to_scale)} clusters")
+    def scale_with_id(cid: int, card: int) -> tuple[int, bool]:
+        """Scale a single cluster and return the cluster ID and scaling result."""
+        return cid, scale_cluster(cid, card)
     
-    successfully_scaled = []
-    for cluster_id, target_cardinality in clusters_to_scale.items():
-        logger.info(f"Scaling cluster {cluster_id} to {target_cardinality} VMs")
-        if scale_cluster(cluster_id, target_cardinality):
-            successfully_scaled.append(cluster_id)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_map = {
+            executor.submit(scale_with_id, cid, card): cid
+            for cid, card in n_vms.items()
+        }
+        for future in as_completed(future_map):
+            cid, ok = future.result()
+            if ok:
+                # Check which devices are assigned to the scaled cluster and update their corresponding cluster ID in the local database
+                cluster_allocs = {dev_id: cluster_id for dev_id, cluster_id in allocs.items() if cluster_id == cid}
+                updated = update_device_cluster_assignments(cluster_allocs)
+                total_updated += updated
+                if updated > 0:
+                    logger.info(f"Cluster {cid} scaled successfully: {updated} devices updated")
     
-    logger.info(f"Cluster scaling completed: {len(successfully_scaled)}/{len(clusters_to_scale)} successful")
-    return successfully_scaled
+    logger.info(f"Cluster scaling completed: {total_updated} total devices updated")
+    return total_updated
 

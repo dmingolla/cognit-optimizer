@@ -1,6 +1,6 @@
 from typing import Any
 from modules.logger import get_logger
-from modules.cluster_scaler import scale_clusters
+from modules.cluster_scaler import scale_clusters_and_update_db
 
 logger = get_logger(__name__)
 
@@ -60,7 +60,7 @@ def optimize_device_assignments(devices: list, clusters: list) -> tuple:
 
 def run_optimization_with_db_updates() -> tuple | None:
     """Run complete optimization cycle with devices database updates."""
-    from modules.db_adapter import get_device_assignments, update_device_cluster_assignments
+    from modules.db_adapter import get_device_assignments
     from modules.opennebula_adapter import get_cluster_pool, get_app_requirement
 
     try:
@@ -107,21 +107,7 @@ def run_optimization_with_db_updates() -> tuple | None:
             for device_id, cluster_id in allocs.items():
                 logger.info(f"{device_id} -> Cluster {cluster_id}")
             
-            # Scale clusters based on optimizer output
-            successfully_scaled_clusters = scale_clusters(n_vms)
-            
-            # Update database only for devices assigned to successfully scaled clusters
-            if successfully_scaled_clusters:
-                scaled_cluster_set = set(successfully_scaled_clusters)
-                filtered_allocs = {
-                    device_id: cluster_id 
-                    for device_id, cluster_id in allocs.items() 
-                    if cluster_id in scaled_cluster_set
-                }
-                updated_count = update_device_cluster_assignments(filtered_allocs)
-                logger.info(f"Database updates: {updated_count} devices updated for successfully scaled clusters")
-            else:
-                logger.warning("No clusters were successfully scaled, database not updated")
+            scale_clusters_and_update_db(n_vms, allocs)
 
         return result
     
