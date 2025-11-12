@@ -289,6 +289,17 @@ def optimize_contention(
 def optimize(
     clusters: Collection[Cluster], devices: Collection[Device], n_iter: int
 ) -> list[tuple]:
+    """
+    Run optimization for multiple device load variations.
+    
+    Args:
+        clusters: Collection of clusters to optimize over
+        devices: Collection of devices to assign
+        n_iter: Number of iterations to create device load variations
+        
+    Returns:
+        List of tuples (allocs, n_vms, objective) for each successful optimization
+    """
     new_devices = [device.adjust(n_iter) for device in devices]
     new_devices = list(list(row) for row in zip(*new_devices))
 
