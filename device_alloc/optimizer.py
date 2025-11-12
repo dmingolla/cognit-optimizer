@@ -262,6 +262,23 @@ def optimize_contention(
     solver: str = 'COIN_CMD',
     **kwargs
 ) -> tuple[dict[int, int], dict[int, int], float] | tuple[()]:
+    """
+    Run optimization with automatic contention fallback.
+    
+    Tries optimization without contention penalty first. If it fails,
+    retries with contention correction to spread VMs across clusters.
+    
+    Args:
+        devices: Collection of devices to assign
+        clusters: Collection of clusters to optimize over
+        min_capacity: Minimum total system capacity
+        max_capacity: Maximum total system capacity
+        contention_corr: Contention penalty multiplier (default: 2.0)
+        solver: MILP solver to use (default: 'COIN_CMD')
+        
+    Returns:
+        Tuple of (allocs, n_vms, objective) or empty tuple if optimization fails
+    """
     opt = DeviceOptimizer(
         devices=devices,
         clusters=clusters,
