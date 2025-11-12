@@ -293,9 +293,9 @@ def optimize(
     new_devices = list(list(row) for row in zip(*new_devices))
 
     results: list[tuple[dict[int, int], dict[int, int], float]] = []
-    for i, devices_ in enumerate(new_devices):
-        opt = DeviceOptimizer(devices=devices_, clusters=clusters, msg=False)
-        if result := opt.optimize():
+    for devices_ in new_devices:
+        result = optimize_contention(devices_, clusters, msg=False)
+        if result:
             results.append(result)
 
     return results
