@@ -279,6 +279,8 @@ def optimize_contention(
     Returns:
         Tuple of (allocs, n_vms, objective) or empty tuple if optimization fails
     """
+    # First attempt: no contention allowed (strict, better performance)
+    # Removes last energy breakpoint → clusters cannot reach full capacity
     opt = DeviceOptimizer(
         devices=devices,
         clusters=clusters,
@@ -289,8 +291,10 @@ def optimize_contention(
         **kwargs
     )
     if result := opt.optimize():
-        return result
-
+        return result  # Success: found solution without contention
+    
+    # Second attempt: allow contention with penalty (relaxed, more flexible)
+    # Keeps last breakpoint but inflates energy consumption → clusters can reach full capacity
     opt = DeviceOptimizer(
         devices=devices,
         clusters=clusters,

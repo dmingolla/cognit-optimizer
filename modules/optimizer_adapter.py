@@ -50,6 +50,8 @@ def optimize_device_assignments(devices: list, clusters: list) -> tuple:
     """Run optimization algorithm on devices and clusters."""
     from device_alloc import optimize_contention
     
+    # Here we can call the optimizer method with multiple iterations and develop a logic to select the best result
+    # For now, we just call the optimize_contention method with one (or max 2) iteration
     return optimize_contention(devices=devices, clusters=clusters)
 
 def run_optimization_with_db_updates() -> tuple | None:
