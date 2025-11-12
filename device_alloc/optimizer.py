@@ -1,5 +1,6 @@
 from collections import defaultdict
 from collections.abc import Collection
+from math import isclose
 from typing import TYPE_CHECKING
 
 from pulp import (
@@ -27,19 +28,21 @@ class DeviceOptimizer:
         '_solver',
         '_x',
         '_n_vms',
-        '_energy'
+        '_energy',
+        '_energy_bpts'
     )
 
     if TYPE_CHECKING:
         _devices: dict[int, Device]
         _clusters: dict[int, Cluster]
-        _cap_lb: int
-        _cap_ub: int
+        _cap_lb: float
+        _cap_ub: float
         _model: Model
         _solver: Solver
         _x: dict[tuple[int, int], Var]
         _n_vms: dict[int, Var]
         _energy: dict[int, LinExpr]
+        _energy_bpts: dict[int, list[tuple[float, float]]]
 
     def __init__(
         self,
@@ -47,21 +50,50 @@ class DeviceOptimizer:
         clusters: Collection[Cluster],
         min_capacity: int = 0,
         max_capacity: int | None = None,
+        contention_corr: float | None = 1.0,
         solver: str = 'COIN_CMD',
         **kwargs
     ) -> None:
         self._devices = {device.id: device for device in devices}
         self._clusters = {cluster.id: cluster for cluster in clusters}
-        self._cap_lb = min_capacity
+        self._cap_lb = float(min_capacity)
         if max_capacity is None:
             self._cap_ub = sum(cluster.max_capacity for cluster in clusters)
         else:
-            self._cap_ub = max_capacity
+            self._cap_ub = float(max_capacity)
         self._model = Model(name='', sense=_MIN)
         self._solver = _get_solver(solver, **kwargs)
         self._x = {}
         self._n_vms = {}
         self._energy = {}
+        # TODO: Use `match` if Python version allows.
+        self._energy_bpts = e_bpts = {}
+        if contention_corr is None:
+            # Contention is not allowed at all.
+            for id_, cluster in self._clusters.items():
+                energy = cluster.energy
+                if isclose(energy[-1][1], energy[-2][1], rel_tol=0.01):
+                    # TODO: Check this assumption on contention.
+                    e_bpts[id_] = energy[:-1]
+                else:
+                    e_bpts[id_] = energy
+        elif contention_corr == 1:
+            # Contention is allowed without penalizing the objective.
+            for id_, cluster in self._clusters.items():
+                e_bpts[id_] = cluster.energy
+        else:
+            # Contention is allowed, but the objective is penalized according
+            # to the value of ``contention_corr``.
+            for id_, cluster in self._clusters.items():
+                energy = cluster.energy
+                last_bpt = energy[-1]
+                if isclose(last_bpt[1], energy[-2][1], rel_tol=0.01):
+                    # TODO: Check this assumption on contention.
+                    bpts = energy[:-1]
+                    bpts.append((last_bpt[0], last_bpt[1] * contention_corr))
+                    e_bpts[id_] = bpts
+                else:
+                    e_bpts[id_] = energy
 
     def _add_vars(self) -> None:
         cap_ub = self._cap_ub
@@ -141,11 +173,12 @@ class DeviceOptimizer:
             device_load = devices[device_id].load
             cluster_loads[cluster_id] += x_var * device_load
 
-        for cluster_id, cluster in self._clusters.items():
+        # for cluster_id, cluster in self._clusters.items():
+        for cluster_id, breakpoints in self._energy_bpts.items():
             cluster_cpu = LinExpr()
             cluster_energy = LinExpr()
             energy[cluster_id] = cluster_energy
-            breakpoints = cluster.energy
+            # breakpoints = cluster.energy
             if not breakpoints or len(breakpoints) == 1:
                 continue
             breakpoints = sorted(breakpoints)
@@ -196,39 +229,66 @@ class DeviceOptimizer:
             for cluster_id, energy in self._energy.items()
         )
 
-    def optimize(self) -> tuple[dict[int, int], dict[int, int], float]:
+    def optimize(
+        self
+    ) -> tuple[dict[int, int], dict[int, int], float] | tuple[()]:
         self._add_vars()
         self._add_constrs()
         self._add_obj()
         self._model.solve(solver=self._solver)
 
-        # print(f'status: {self._model.status}')
         if self._model.status != _OPTIMAL_STATUS:
             return ()
 
         allocs: dict[int, int] = {}
-        # print(f'objective value: {self._model.objective.value()}')
         for (device_id, cluster_id), x_var in self._x.items():
             if round(x_var.value()):
                 allocs[device_id] = cluster_id
-                # print(f'device: {device_id}, cluster: {cluster_id}')
 
-        # clusters = self._clusters
         n_vms: dict[int, int] = {}
         for cluster_id, n_vms_var in self._n_vms.items():
             n_vms_val = round(n_vms_var.value())
             n_vms[cluster_id] = n_vms_val
-            # print(f'cluster: {cluster_id}, n_vms: {n_vms_val}')
-            # TODO: Calculate this difference with the actual number of VMs in
-            # a cluster.
-            # print(f'difference: {n_vms_val - clusters[cluster_id].capacity}')
 
         return allocs, n_vms, self._model.objective.value()
 
 
+def optimize_contention(
+    devices: Collection[Device],
+    clusters: Collection[Cluster],
+    min_capacity: int = 0,
+    max_capacity: int | None = None,
+    contention_corr: float = 2.0,
+    solver: str = 'COIN_CMD',
+    **kwargs
+) -> tuple[dict[int, int], dict[int, int], float] | tuple[()]:
+    opt = DeviceOptimizer(
+        devices=devices,
+        clusters=clusters,
+        min_capacity=min_capacity,
+        max_capacity=max_capacity,
+        contention_corr=None,
+        solver=solver,
+        **kwargs
+    )
+    if result := opt.optimize():
+        return result
+
+    opt = DeviceOptimizer(
+        devices=devices,
+        clusters=clusters,
+        min_capacity=min_capacity,
+        max_capacity=max_capacity,
+        contention_corr=contention_corr,
+        solver=solver,
+        **kwargs
+    )
+    return opt.optimize()
+
+
 def optimize(
     clusters: Collection[Cluster], devices: Collection[Device], n_iter: int
-) -> list[tuple[dict[int, int], dict[int, int], float]]:
+) -> list[tuple]:
     new_devices = [device.adjust(n_iter) for device in devices]
     new_devices = list(list(row) for row in zip(*new_devices))
 
@@ -239,4 +299,3 @@ def optimize(
             results.append(result)
 
     return results
-

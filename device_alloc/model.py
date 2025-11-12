@@ -56,7 +56,7 @@ def create_cluster_pool(oned_client: OnedServerProxy) -> list[Cluster]:
     cont_energy = 0.0
     cap = 0.0
     for cluster in clusters:
-        n_vms = 0.0
+        n_vms = 0
         cpu_total = 0.0
         cluster_template = cluster.get('TEMPLATE', {})
         ghg = float(cluster_template.get('CARBON_INTENSITY', 0.0))
@@ -86,7 +86,7 @@ def create_cluster_pool(oned_client: OnedServerProxy) -> list[Cluster]:
 
         cluster_ = Cluster(
             id=int(cluster['ID']),
-            capacity=n_vms,
+            capacity=float(n_vms),
             max_capacity=cpu_total,
             energy=bpts,
             carbon_intensity=ghg
@@ -121,7 +121,6 @@ class Device:
             # NOTE: This is a guard againts unwanted consequences of the
             # numerical errors.
             load = max(min(load, 1.0), 0.0)
-            device = Device(self.id, self.load, load, self.cluster_ids)
+            device = type(self)(self.id, self.load, load, self.cluster_ids)
             result.append(device)
         return result
-
