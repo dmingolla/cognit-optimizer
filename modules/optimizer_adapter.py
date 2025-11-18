@@ -71,16 +71,22 @@ def run_optimization_with_db_updates() -> tuple | None:
         assignments = get_device_assignments()
         
         logger.info("=== DEVICE REQUIREMENTS ===")
+        valid_assignments = []
         for assignment in assignments:
             device_id = assignment['device_id']
             app_req_id = assignment['app_req_id']
             app_req = get_app_requirement(app_req_id)
             if not app_req:
-                logger.warning(f"{device_id}: Could not fetch app requirements (app_req_id={app_req_id})")
+                logger.warning(f"{device_id}: Skipping device - app requirement {app_req_id} not found in OpenNebula")
                 continue
             logger.info(_format_device_requirements(device_id, app_req))
+            valid_assignments.append(assignment)
         
-        devices = create_devices_from_assignments(assignments)
+        if not valid_assignments:
+            logger.warning("No devices with valid app requirements found. Skipping optimization.")
+            return None
+        
+        devices = create_devices_from_assignments(valid_assignments)
 
         # Filter cluster pool to only include clusters that are feasible for at least one device
         all_feasible_cluster_ids = {cid for device in devices for cid in device.cluster_ids}
