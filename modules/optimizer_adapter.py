@@ -64,10 +64,13 @@ def optimize_device_assignments(devices: list, clusters: list) -> tuple:
 
 def run_optimization_with_db_updates() -> tuple | None:
     """Run complete optimization cycle with devices database updates."""
-    from modules.db_adapter import get_device_assignments
+    from modules.db_adapter import get_device_assignments, cleanup_old_records
     from modules.opennebula_adapter import get_cluster_pool, get_app_requirement
 
     try:
+        # Clean up old records (older than DB_CLEANUP_DAYS)
+        cleanup_old_records()
+        
         assignments = get_device_assignments()
         
         logger.info("=== DEVICE REQUIREMENTS ===")

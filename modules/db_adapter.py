@@ -21,6 +21,37 @@ def get_device_assignments() -> list[dict]:
     """Retrieve all device assignments from database."""
     return _db.get_all_device_assignments()
 
+def cleanup_old_records() -> int:
+    """Trigger cleanup of old records in the database.
+    
+    Returns:
+        Number of records deleted
+    """
+    # Access the cleanup method through the singleton instance
+
+    from modules.logger import get_logger
+    logger = get_logger(__name__)
+    
+    try:
+        # Get count before cleanup
+        before_count = len(_db.get_all_device_assignments())
+        
+        # Trigger cleanup
+        _db.cleanup_old_records()
+        
+        # Get count after cleanup
+        after_count = len(_db.get_all_device_assignments())
+        
+        deleted_count = before_count - after_count
+
+        if deleted_count > 0:
+            logger.info(f"Cleaned up {deleted_count} old device assignments")
+        
+        return deleted_count
+    except Exception as e:
+        logger.error(f"Error during cleanup: {e}")
+        return 0
+
 def update_device_cluster_assignments(allocations: dict[str, int]) -> int:
     """Update device cluster assignments in database only when changed.
     
