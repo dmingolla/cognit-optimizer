@@ -93,6 +93,10 @@ def run_optimization_with_db_updates() -> tuple | None:
 
         # Filter cluster pool to only include clusters that are feasible for at least one device
         all_feasible_cluster_ids = {cid for device in devices for cid in device.cluster_ids}
+        
+        logger.info(f"=== FEASIBILITY CHECK ===")
+        logger.info(f"Total devices: {len(devices)}")
+        logger.info(f"All feasible cluster IDs across all devices: {sorted(all_feasible_cluster_ids)}")
 
         clusters, cluster_lookup = get_cluster_pool()
         filtered_clusters = [c for c in clusters if c.id in all_feasible_cluster_ids]
