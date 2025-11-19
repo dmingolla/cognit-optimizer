@@ -44,7 +44,7 @@ def get_app_requirement(app_req_id: int) -> dict:
                 template = result[DOCUMENT_KEY].get(TEMPLATE_KEY, {})
                 return template
     except OneXMLRPCExistenceError as e:
-        logger.warning(
+        logger.debug(
             f"App requirement {app_req_id} not found in OpenNebula database. "
             f"This app_req_id was most probably deleted when device_runtime stopped."
         )

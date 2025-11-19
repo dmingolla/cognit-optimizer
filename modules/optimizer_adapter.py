@@ -80,7 +80,7 @@ def run_optimization_with_db_updates() -> tuple | None:
             app_req_id = assignment['app_req_id']
             app_req = get_app_requirement(app_req_id)
             if not app_req:
-                logger.warning(f"{device_id}: Skipping device - app requirement {app_req_id} not found in OpenNebula")
+                logger.debug(f"{device_id}: Skipping device - app requirement {app_req_id} not found in OpenNebula")
                 continue
             logger.info(_format_device_requirements(device_id, app_req))
             valid_assignments.append(assignment)

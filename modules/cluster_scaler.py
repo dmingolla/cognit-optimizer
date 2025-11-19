@@ -81,6 +81,7 @@ def scale_cluster(cluster_id: int, target_cardinality: int) -> bool:
         True if scaling was successful, False otherwise
     """
     
+    logger.info(f"Scaling cluster {cluster_id} to target cardinality {target_cardinality}")
     cluster_template = get_cluster_template(cluster_id)
     if not cluster_template:
         return False
