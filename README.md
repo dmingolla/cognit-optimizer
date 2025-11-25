@@ -2,6 +2,41 @@
 
 A decoupled daemon that optimizes device-to-cluster assignments using Mixed-Integer Linear Programming (MILP) to minimize energy consumption and carbon footprint.
 
+## Debian Package
+
+### Build
+
+```bash
+cd /path/to/cognit-optimizer
+ln -sf packaging/debian debian
+dpkg-buildpackage -us -uc -b
+```
+
+Output: `../opennebula-cognit-optimizer_1.0.0-1_all.deb`
+
+### Install
+
+**Requires:** `opennebula-cognit-frontend` must be installed first.
+
+```bash
+dpkg -i opennebula-cognit-optimizer_1.0.0-1_all.deb
+```
+
+Service starts automatically as daemon (runs every 300s).
+
+### Verify
+
+```bash
+systemctl status opennebula-cognit-optimizer
+journalctl -u opennebula-cognit-optimizer -f
+```
+
+### Remove
+
+```bash
+dpkg --purge opennebula-cognit-optimizer
+```
+
 ## Overview
 
 The optimizer periodically:
