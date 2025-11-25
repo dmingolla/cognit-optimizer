@@ -81,6 +81,7 @@ def scale_cluster(cluster_id: int, target_cardinality: int) -> bool:
         True if scaling was successful, False otherwise
     """
     
+    logger.info(f"Scaling cluster {cluster_id} to target cardinality {target_cardinality}")
     cluster_template = get_cluster_template(cluster_id)
     if not cluster_template:
         return False
@@ -111,10 +112,15 @@ def scale_clusters_and_update_db(n_vms: dict[int, int], allocs: dict) -> int:
     """
     n_clusters_to_scale = len(n_vms)
     logger.info("=== CLUSTER SCALING ===")
+    
+    if n_clusters_to_scale == 0:
+        logger.info("No clusters to scale")
+        return 0
+    
     logger.info(f"Scaling {n_clusters_to_scale} clusters in parallel")
     
     total_updated = 0
-    max_workers = n_clusters_to_scale
+    max_workers = max(1, n_clusters_to_scale)  # Ensure at least 1 worker
     
     def scale_with_id(cid: int, card: int) -> tuple[int, bool]:
         """Scale a single cluster and return the cluster ID and scaling result."""
