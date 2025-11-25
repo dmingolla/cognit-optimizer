@@ -4,8 +4,12 @@ import os
 DB_PATH = '/root/devices_local_database/device_cluster_assignment.db'
 DB_CLEANUP_DAYS = 30
 
-# Cognit frontend paths
-COGNIT_FRONTEND_SRC = '/root/cognit-frontend/src'
+# Cognit frontend paths - try installed location first, then dev location
+COGNIT_FRONTEND_SRC = (
+    '/usr/lib/one/cognit-frontend' 
+    if os.path.exists('/usr/lib/one/cognit-frontend') 
+    else '/root/cognit-frontend/src'
+)
 
 # OpenNebula configuration
 ONE_XMLRPC_ENDPOINT = os.getenv('ONE_XMLRPC_ENDPOINT')

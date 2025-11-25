@@ -13,6 +13,7 @@ Homepage: https://github.com/SovereignEdgeEU-COGNIT/cognit-optimizer
 Package: opennebula-cognit-optimizer
 Architecture: all
 Depends: python3 (>= 3.10),
+         opennebula-cognit-frontend,
          ${misc:Depends}
 Description: OpenNebula COGNIT Optimizer daemon
  The COGNIT Optimizer is a daemon that optimizes device-to-cluster
