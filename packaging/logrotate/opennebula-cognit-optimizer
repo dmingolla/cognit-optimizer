@@ -1,0 +1,14 @@
+/var/log/one/cognit-optimizer.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root oneadmin
+    postrotate
+        systemctl reload opennebula-cognit-optimizer 2>/dev/null || true
+    endscript
+}
+
+
