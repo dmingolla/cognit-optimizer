@@ -1,0 +1,18 @@
+[Unit]
+Description=OpenNebula COGNIT Optimizer
+After=network.target opennebula.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+EnvironmentFile=-/etc/one/cognit-optimizer.conf
+ExecStart=/usr/share/one/cognit-optimizer/python-venv/bin/python /usr/lib/one/cognit-optimizer/main.py --daemon
+Restart=on-failure
+RestartSec=5
+WorkingDirectory=/usr/lib/one/cognit-optimizer
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=multi-user.target
+

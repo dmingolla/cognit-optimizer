@@ -1,0 +1,23 @@
+Source: opennebula-cognit-optimizer
+Section: utils
+Priority: optional
+Maintainer: OpenNebula Systems <contact@opennebula.io>
+Build-Depends: debhelper (>= 10),
+               dh-python,
+               python3,
+               python3-venv,
+               python3-pip
+Standards-Version: 4.5.0
+Homepage: https://github.com/SovereignEdgeEU-COGNIT/cognit-optimizer
+
+Package: opennebula-cognit-optimizer
+Architecture: all
+Depends: python3 (>= 3.10),
+         ${misc:Depends}
+Description: OpenNebula COGNIT Optimizer daemon
+ The COGNIT Optimizer is a daemon that optimizes device-to-cluster
+ assignments in the COGNIT Framework using linear programming.
+ .
+ This package includes a bundled Python virtual environment with all
+ required dependencies.
+

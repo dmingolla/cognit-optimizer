@@ -1,0 +1,16 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" = "purge" ]; then
+    systemctl disable opennebula-cognit-optimizer 2>/dev/null || true
+    rm -f /lib/systemd/system/opennebula-cognit-optimizer.service
+    rm -f /etc/logrotate.d/opennebula-cognit-optimizer
+    rm -rf /usr/lib/one/cognit-optimizer
+    rm -rf /usr/share/one/cognit-optimizer
+    rm -f /etc/one/cognit-optimizer.conf
+    systemctl daemon-reload 2>/dev/null || true
+fi
+
+#DEBHELPER#
+

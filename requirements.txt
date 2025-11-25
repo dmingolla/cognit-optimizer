@@ -6,4 +6,6 @@ pyone
 haversine
 requests
 fastapi
--e git+https://github.com/OpenNebula/one-aiops.git@b05fa36fcc424208360f0bd7cc756a162be17728#egg=pyoneai&subdirectory=sdk
+scipy
+numpy<2
+# pyoneai is installed from vendor-pyoneai/ directory
