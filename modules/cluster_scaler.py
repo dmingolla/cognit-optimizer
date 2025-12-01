@@ -70,25 +70,21 @@ def call_scale_endpoint(endpoint: str) -> bool:
         return False
 
 
-def scale_cluster(cluster_id: int, target_cardinality: int) -> bool:
+def scale_cluster(cluster_id: int, target_cardinality: int, flavour: str) -> bool:
     """Scale a single cluster to target cardinality.
     
     Args:
         cluster_id: The cluster ID to scale
         target_cardinality: Target number of VMs for the cluster
+        flavour: Flavour to use for scaling (if None, extracts from template)
         
     Returns:
         True if scaling was successful, False otherwise
     """
     
-    logger.info(f"Scaling cluster {cluster_id} to target cardinality {target_cardinality}")
+    logger.info(f"Scaling cluster {cluster_id} with flavour {flavour} to target cardinality {target_cardinality}")
     cluster_template = get_cluster_template(cluster_id)
     if not cluster_template:
-        return False
-    
-    flavour = get_flavour_from_template(cluster_template)
-    if not flavour:
-        logger.warning(f"Could not determine flavour for cluster {cluster_id}")
         return False
     
     endpoint = construct_endpoint(cluster_template, flavour, target_cardinality)
@@ -102,44 +98,60 @@ def scale_cluster(cluster_id: int, target_cardinality: int) -> bool:
 def scale_clusters_and_update_db(n_vms: dict[int, int], allocs: dict) -> int:
     """
     Scale clusters in parallel and update DB for each successfully scaled cluster.
+    Each flavour within a cluster is scaled separately.
     
     Args:
         n_vms: Cluster ID to target cardinality mapping
-        allocs: Device ID to cluster ID mapping
+        allocs: Composite ID (device_id:::flavour) to cluster ID mapping
         
     Returns:
         Total number of devices updated in database
     """
-    n_clusters_to_scale = len(n_vms)
     logger.info("=== CLUSTER SCALING ===")
     
-    if n_clusters_to_scale == 0:
+    if not n_vms:
         logger.info("No clusters to scale")
         return 0
     
-    logger.info(f"Scaling {n_clusters_to_scale} clusters in parallel")
+    # Group devices by (cluster_id, flavour) and count devices per flavour
+    cluster_flavour_counts = {}
+    for composite_id, cluster_id in allocs.items():
+        if cluster_id in n_vms and ':::' in composite_id:
+            flavour = composite_id.split(':::', 1)[1]
+            key = (cluster_id, flavour)
+            cluster_flavour_counts[key] = cluster_flavour_counts.get(key, 0) + 1
+    
+    if not cluster_flavour_counts:
+        logger.info("No device assignments found for clusters to scale")
+        return 0
+    
+    logger.info(f"Scaling {len(cluster_flavour_counts)} cluster-flavour combinations in parallel")
     
     total_updated = 0
-    max_workers = max(1, n_clusters_to_scale)  # Ensure at least 1 worker
+    max_workers = max(1, len(cluster_flavour_counts))
     
-    def scale_with_id(cid: int, card: int) -> tuple[int, bool]:
-        """Scale a single cluster and return the cluster ID and scaling result."""
-        return cid, scale_cluster(cid, card)
+    def scale_with_flavour(cid: int, flavour: str, card: int) -> tuple[int, str, bool]:
+        """Scale a single cluster-flavour combination and return the result."""
+        return cid, flavour, scale_cluster(cid, card, flavour)
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_map = {
-            executor.submit(scale_with_id, cid, card): cid
-            for cid, card in n_vms.items()
+            executor.submit(scale_with_flavour, cid, flavour, count): (cid, flavour)
+            for (cid, flavour), count in cluster_flavour_counts.items()
         }
+        scaled_clusters = set()
         for future in as_completed(future_map):
-            cid, ok = future.result()
+            cid, flavour, ok = future.result()
             if ok:
-                # Check which devices are assigned to the scaled cluster and update their corresponding cluster ID in the local database
-                cluster_allocs = {dev_id: cluster_id for dev_id, cluster_id in allocs.items() if cluster_id == cid}
-                updated = update_device_cluster_assignments(cluster_allocs)
-                total_updated += updated
-                if updated > 0:
-                    logger.info(f"Cluster {cid} scaled successfully: {updated} devices updated")
+                scaled_clusters.add(cid)
+    
+    # Update DB for all successfully scaled clusters
+    for cid in scaled_clusters:
+        cluster_allocs = {dev_id: cluster_id for dev_id, cluster_id in allocs.items() if cluster_id == cid}
+        updated = update_device_cluster_assignments(cluster_allocs)
+        total_updated += updated
+        if updated > 0:
+            logger.info(f"Cluster {cid} scaled successfully: {updated} devices updated")
     
     logger.info(f"Cluster scaling completed: {total_updated} total devices updated")
     return total_updated
