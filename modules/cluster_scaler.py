@@ -119,9 +119,11 @@ def scale_clusters_and_update_db(n_vms: dict[int, int], allocs: dict) -> int:
         if cluster_id in n_vms and ':::' in composite_id:
             flavour = composite_id.split(':::', 1)[1]
             key = (cluster_id, flavour)
-            # Use optimizer's calculated VM count
+            # Use optimizer's calculated VM count, ensure minimum of 1
             if key not in cluster_flavour_targets:
-                cluster_flavour_targets[key] = n_vms[cluster_id]
+                target_cardinality = max(1, n_vms[cluster_id])
+                cluster_flavour_targets[key] = target_cardinality
+                logger.info(f"Cluster {cluster_id} (flavour {flavour}): optimizer n_vms={n_vms[cluster_id]}, target_cardinality={target_cardinality}")
     
     if not cluster_flavour_targets:
         logger.info("No device assignments found for clusters to scale")
