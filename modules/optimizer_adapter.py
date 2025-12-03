@@ -34,7 +34,6 @@ def create_devices_from_assignments(assignments: list[dict]) -> list:
         device_id = assignment['device_id']
         flavour = assignment['flavour']
         load = assignment['estimated_load']
-        capacity_load = 1.0  # TODO: Check with colleagues
         app_req_id = assignment['app_req_id']
 
         # Create composite identifier: device_id:::flavour
@@ -47,7 +46,7 @@ def create_devices_from_assignments(assignments: list[dict]) -> list:
         device = Device(
             id=composite_id,
             load=load,
-            capacity_load=capacity_load,
+            capacity_load=load,
             cluster_ids=feasible_cluster_ids
         )
         devices.append(device)

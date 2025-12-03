@@ -113,22 +113,24 @@ def scale_clusters_and_update_db(n_vms: dict[int, int], allocs: dict) -> int:
         logger.info("No clusters to scale")
         return 0
     
-    # Group devices by (cluster_id, flavour) and count devices per flavour
-    cluster_flavour_counts = {}
+    # Group devices by (cluster_id, flavour) and use optimizer's n_vms for target cardinality
+    cluster_flavour_targets = {}
     for composite_id, cluster_id in allocs.items():
         if cluster_id in n_vms and ':::' in composite_id:
             flavour = composite_id.split(':::', 1)[1]
             key = (cluster_id, flavour)
-            cluster_flavour_counts[key] = cluster_flavour_counts.get(key, 0) + 1
+            # Use optimizer's calculated VM count
+            if key not in cluster_flavour_targets:
+                cluster_flavour_targets[key] = n_vms[cluster_id]
     
-    if not cluster_flavour_counts:
+    if not cluster_flavour_targets:
         logger.info("No device assignments found for clusters to scale")
         return 0
     
-    logger.info(f"Scaling {len(cluster_flavour_counts)} cluster-flavour combinations in parallel")
+    logger.info(f"Scaling {len(cluster_flavour_targets)} cluster-flavour combinations in parallel")
     
     total_updated = 0
-    max_workers = max(1, len(cluster_flavour_counts))
+    max_workers = max(1, len(cluster_flavour_targets))
     
     def scale_with_flavour(cid: int, flavour: str, card: int) -> tuple[int, str, bool]:
         """Scale a single cluster-flavour combination and return the result."""
@@ -136,8 +138,8 @@ def scale_clusters_and_update_db(n_vms: dict[int, int], allocs: dict) -> int:
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_map = {
-            executor.submit(scale_with_flavour, cid, flavour, count): (cid, flavour)
-            for (cid, flavour), count in cluster_flavour_counts.items()
+            executor.submit(scale_with_flavour, cid, flavour, target_cardinality): (cid, flavour)
+            for (cid, flavour), target_cardinality in cluster_flavour_targets.items()
         }
         scaled_clusters = set()
         for future in as_completed(future_map):
